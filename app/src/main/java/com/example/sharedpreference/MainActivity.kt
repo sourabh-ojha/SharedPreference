@@ -1,6 +1,6 @@
 package com.example.sharedpreference
 
-import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,16 +26,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sharedpreference.ui.theme.SharedPreferenceTheme
+import com.example.sharedpreference.util.PrefManager
 
 class MainActivity : ComponentActivity() {
+
+    private val prefManager = PrefManager(this@MainActivity)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val isLoggedIn = prefManager.getBoolean("isLoggedIn", false)
+        if (isLoggedIn) {
+            startActivity(Intent(this@MainActivity, DashboardScreen::class.java))
+            finish()
+            return
+        }
+
         setContent {
             SharedPreferenceTheme {
                 // A surface container using the 'background' color from the theme
@@ -43,8 +54,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-
-                    SharedPreferenceFunction(context = LocalContext.current)
+                    SharedPreferenceFunction()
                 }
             }
         }
@@ -52,21 +62,12 @@ class MainActivity : ComponentActivity() {
 
 
     @Composable
-    fun SharedPreferenceFunction(context: Context) {
-        val userName = remember { mutableStateOf("") }
-        val password = remember { mutableStateOf("") }
+    fun SharedPreferenceFunction() {
+        val userNameStr = prefManager.getString("Username", null)
+        val passwordStr = prefManager.getString("Password", null)
 
-        val sharedPreferences = this@MainActivity.getPreferences(Context.MODE_PRIVATE)
-        val prefMgrEditor = sharedPreferences.edit()
-        prefMgrEditor.putBoolean("splash_shown", true).apply()
-
-
-        val userNameStr = sharedPreferences.getString("name", "")
-        val passwordStr = sharedPreferences.getString("age", "")
-
-        userName.value = userNameStr!!
-        password.value = passwordStr!!
-
+        val userName = remember { mutableStateOf(userNameStr) }
+        val password = remember { mutableStateOf(passwordStr) }
 
         Column(
             Modifier.fillMaxSize(),
@@ -79,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 20.dp)
             ) {
-                CommonTextField(label = "Username", value = userName.value, onChanged = {userName.value = it})
+                CommonTextField(label = "Username", value = userName.value ?: "", onChanged = {userName.value = it})
 
             }
 
@@ -88,12 +89,19 @@ class MainActivity : ComponentActivity() {
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 20.dp)
             ) {
-                CommonTextField(label = "Password", value = password.value, onChanged = {password.value = it})
+                CommonTextField(label = "Password", value = password.value ?: "", onChanged = {password.value = it})
 
             }
 
             Button(
-                onClick = { },
+                onClick = {
+                    prefManager.save("Username", userName.value ?: "")
+                    prefManager.save("Password", password.value ?: "")
+                    prefManager.save("isLoggedIn", true)
+
+                    startActivity(Intent(this@MainActivity, DashboardScreen::class.java))
+                    finish()
+                },
                 shape = RoundedCornerShape(40.dp),
                 colors = ButtonDefaults.buttonColors(Color.Blue),
                 border = BorderStroke(width = 1.dp, color = Color.Blue),
